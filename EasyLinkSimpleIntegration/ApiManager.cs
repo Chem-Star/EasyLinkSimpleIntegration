@@ -163,7 +163,7 @@ namespace EasyLinkSimpleIntegration
         //Handles sending the RestRequest and re-validating if the session id has expired
         public EasyLinkResponse SendEasyLinkRequest(RestClient client, RestRequest request)
         {
-            request.AddHeader("Authorization", "Bearer " + auth_response.access_token);
+            request.AddOrUpdateParameter("Authorization", "Bearer " + auth_response.access_token, ParameterType.HttpHeader);
             request.AddHeader("cache-control", "no-cache");
 
             IRestResponse response = client.Execute(request);
