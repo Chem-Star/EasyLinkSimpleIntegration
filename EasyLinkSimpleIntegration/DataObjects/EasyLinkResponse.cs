@@ -8,9 +8,10 @@ namespace EasyLinkSimpleIntegration.DataObjects
 {
     class EasyLinkResponse
     {
-        public string status        { get; set; }
-        public string message       { get; set; }
-        public string record_name   { get; set; }
-        public EasyLinkOrder record { get; set; }
+        public string status                { get; set; }
+        public string message               { get; set; }
+        public string record_name           { get; set; }
+        public EasyLinkOrder record         { get; set; }
+        public List<EasyLinkOrder> records  { get; set; }
     }
 }

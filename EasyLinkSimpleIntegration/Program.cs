@@ -18,8 +18,8 @@ namespace EasyLinkSimpleIntegration
         {
             Console.WriteLine("Welcome to EasyLinkSimpleIntegration");
 
-            initializeApiManager();
-            initializeFolderWatchers();
+            InitializeApiManager();
+            InitializeFolders();
 
             while (true)
             {
@@ -29,25 +29,39 @@ namespace EasyLinkSimpleIntegration
                     case "clear":
                         Console.Clear();
                         break;
+                    case "getbulkoutbound":
+                        Console.WriteLine("Enter the oldest date for orders you would like to retreive.");
+                        string Outbound_Date_String = Console.ReadLine();
+                        apiManager.SendGetBulkOrderRequest(EasyLinkOrder.OrderType.Outbound, Outbound_Date_String);
+                        break;
+                    case "getbulkinbound":
+                        Console.WriteLine("Enter the oldest date for orders you would like to retreive.");
+                        string Inbound_Date_String = Console.ReadLine();
+                        apiManager.SendGetBulkOrderRequest(EasyLinkOrder.OrderType.Inbound, Inbound_Date_String);
+                        break;
                     case "getoutboundbyexternal":
                         Console.WriteLine("Enter the record external name of the outbound order you would like to retrieve.");
                         string Outbound_ExternalName = Console.ReadLine();
-                        apiManager.SubmitGetEasyLinkOrderOrderRequest(EasyLinkOrder.OrderType.Outbound, "", Outbound_ExternalName);
+                        apiManager.SendGetOrderRequest(EasyLinkOrder.OrderType.Outbound, "", Outbound_ExternalName);
                         break;
                     case "getoutbound":
                         Console.WriteLine("Enter the record name of the outbound order you would like to retrieve.");
                         string Outbound_Name = Console.ReadLine();
-                        apiManager.SubmitGetEasyLinkOrderOrderRequest(EasyLinkOrder.OrderType.Outbound, Outbound_Name, "");
+                        apiManager.SendGetOrderRequest(EasyLinkOrder.OrderType.Outbound, Outbound_Name, "");
                         break;
                     case "getinboundbyexternal":
                         Console.WriteLine("Enter the record external name of the inbound order you would like to retrieve.");
                         string Inbound_ExternalName = Console.ReadLine();
-                        apiManager.SubmitGetEasyLinkOrderOrderRequest(EasyLinkOrder.OrderType.Inbound, "", Inbound_ExternalName);
+                        apiManager.SendGetOrderRequest(EasyLinkOrder.OrderType.Inbound, "", Inbound_ExternalName);
                         break;
                     case "getinbound":
                         Console.WriteLine("Enter the record name of the inbound order you would like to retrieve.");
                         string Inbound_Name = Console.ReadLine();
-                        apiManager.SubmitGetEasyLinkOrderOrderRequest(EasyLinkOrder.OrderType.Inbound, Inbound_Name, "");
+                        apiManager.SendGetOrderRequest(EasyLinkOrder.OrderType.Inbound, Inbound_Name, "");
+                        break;
+                    case "scan":
+                        Console.WriteLine("Scanning folders for new payloads.");
+                        Program.ScanFolders();
                         break;
                     default:
                         Console.WriteLine("Command '" + line + "' is not valid.");
@@ -67,7 +81,7 @@ namespace EasyLinkSimpleIntegration
         }
 
         //Initialize the API Manager with credentials from App.config
-        static void initializeApiManager()
+        static void InitializeApiManager()
         {
             apiManager = new ApiManager(
                     GetAppSetting<string>("client_id"),
@@ -79,35 +93,22 @@ namespace EasyLinkSimpleIntegration
                 );
         }
 
-        //////////////////////////////////////////////////////////////
-        // FILE WATCHERS
-        //////////////////////////////////////////////////////////////
-        static FileSystemWatcher outboundNewPayloadWatcher;
-        static FileSystemWatcher outboundUpdatePayloadWatcher;
-        static FileSystemWatcher inboundNewPayloadWatcher;
-        static FileSystemWatcher inboundUpdatePayloadWatcher;
-
         //Initialize a folder watcher for both Outbound and Inbound for NEW and UPDATE payloads
-        static void initializeFolderWatchers()
+        static void InitializeFolders()
         {
             string rootPath = ConfigurationManager.AppSettings["OrderFolderPath"];
 
-            Program.outboundNewPayloadWatcher       = initializeFolderWatcher(rootPath, EasyLinkOrder.OrderType.Outbound, ApiManager.Action.NEW);
-            Program.outboundUpdatePayloadWatcher    = initializeFolderWatcher(rootPath, EasyLinkOrder.OrderType.Outbound, ApiManager.Action.UPDATE);
-            Program.inboundNewPayloadWatcher        = initializeFolderWatcher(rootPath, EasyLinkOrder.OrderType.Inbound , ApiManager.Action.NEW);
-            Program.inboundUpdatePayloadWatcher     = initializeFolderWatcher(rootPath, EasyLinkOrder.OrderType.Inbound , ApiManager.Action.UPDATE);
+            InitializeFolder(rootPath, EasyLinkOrder.OrderType.Outbound, ApiManager.Action.NEW);
+            InitializeFolder(rootPath, EasyLinkOrder.OrderType.Outbound, ApiManager.Action.UPDATE);
+            InitializeFolder(rootPath, EasyLinkOrder.OrderType.Inbound , ApiManager.Action.NEW);
+            InitializeFolder(rootPath, EasyLinkOrder.OrderType.Inbound , ApiManager.Action.UPDATE);
 
-            Console.WriteLine("Initialized File Watchers - "+rootPath);
+            Console.WriteLine("Initialized Files - "+rootPath);
         }
-
-        //Create a folder watcher at the rootpath\ordertype\action if one doesn't exist
-        //then any time a json file is modified in the folder, trigger the payloadChanged method
-        //DRAG AND DROP OF FILES DOESN"T TRIGGER A CHANGE
-        static FileSystemWatcher initializeFolderWatcher(string rootpath, EasyLinkOrder.OrderType orderType, ApiManager.Action action)
+        //Create a folder at the rootpath\ordertype\action if one doesn't exist
+        static void InitializeFolder(string rootpath, EasyLinkOrder.OrderType orderType, ApiManager.Action action)
         {
             string path = rootpath + "\\" + orderType + "\\" + action;
-            FileSystemWatcher fileWatcher = new FileSystemWatcher();
-
             try
             {
                 //make the directory if it doesn't currently exist
@@ -115,52 +116,72 @@ namespace EasyLinkSimpleIntegration
                 {
                     Directory.CreateDirectory(path);
                 }
-
-                fileWatcher.Path = path;
-                fileWatcher.NotifyFilter = NotifyFilters.LastWrite;
-                fileWatcher.Filter = "*.json*";
-                fileWatcher.Changed += (s, e) => Program.payloadChanged(s, e, orderType, action);
-                fileWatcher.EnableRaisingEvents = true;
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                Console.WriteLine("There was an issue setting up your folder watcher.");
+                Console.WriteLine("There was an issue setting up your folder.");
                 Console.WriteLine(ex);
-                return null;
             }
-
-            return fileWatcher;
         }
 
-        // When a payload is detected, make sure that it hasn't already been processed by a different handler 
-        // (FileSystemWatcher often triggers
-        // If it hasn't been handled, then send it to the apiManager to submit to the ChemStar system.
+
+        //Scan each folder for new payloads
+        static void ScanFolders()
+        {
+            string rootPath = ConfigurationManager.AppSettings["OrderFolderPath"];
+
+            ScanFolder(rootPath, EasyLinkOrder.OrderType.Outbound, ApiManager.Action.NEW);
+            ScanFolder(rootPath, EasyLinkOrder.OrderType.Outbound, ApiManager.Action.UPDATE);
+            ScanFolder(rootPath, EasyLinkOrder.OrderType.Inbound, ApiManager.Action.NEW);
+            ScanFolder(rootPath, EasyLinkOrder.OrderType.Inbound, ApiManager.Action.UPDATE);
+
+            Console.WriteLine("Done Scanning Directories");
+        }
+        //Scan the specified folder for new payloads, process any that are found
+        static void ScanFolder(string rootpath, EasyLinkOrder.OrderType orderType, ApiManager.Action action)
+        {
+            string path = rootpath + "\\" + orderType + "\\" + action;
+
+            Console.WriteLine("Scanning directory " + path);
+            DirectoryInfo di = new DirectoryInfo(path);
+            FileInfo[] files = null;
+            try
+            {
+                files = di.GetFiles("*.*", SearchOption.TopDirectoryOnly);
+                foreach(FileInfo file in files)
+                {
+                    ProcessPayload(file, orderType, action);
+                }
+
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                Console.WriteLine("There was an error scanning the directory.");
+            }
+        }
+
+
+        // Try to process the specified payload
         // If ChemStar successfully receives the payload then move the file to a 'Processed' sub-folder
         // If there is an issue with the submission then move the payload to an 'Errored' sub-folder
-        static Dictionary<string, DateTime> lastRead = new Dictionary<string, DateTime>();
-        static void payloadChanged(object sender, FileSystemEventArgs file, EasyLinkOrder.OrderType orderType, ApiManager.Action action)
+        static void ProcessPayload(FileInfo file, EasyLinkOrder.OrderType orderType, ApiManager.Action action)
         {
             try
             {
+                Console.WriteLine("FOUND ORDER FILE: " + file.Name);
+
                 string filename = file.Name;
-                string filepath = file.FullPath;
-                DateTime lastWrite = File.GetLastWriteTime(file.FullPath);
+                string filepath = file.FullName;
 
-                //get the value of last write for the last time we processed the order
-                DateTime lastLastWrite;
-                lastRead.TryGetValue(filename, out lastLastWrite);
-
-                //don't handle deleted files and don't handle the same file change twice
-                if (File.Exists(filepath) && lastWrite != lastLastWrite)
+                //don't handle deleted files
+                if (File.Exists(filepath))
                 {
-                    Console.WriteLine("ORDER FILE CHANGED: " + file.Name);
-                    lastRead[filename] = lastWrite;
-
-                    string json = System.IO.File.ReadAllText(file.FullPath);
+                    string json = System.IO.File.ReadAllText(filepath);
                     EasyLinkOrder order = JsonConvert.DeserializeObject<EasyLinkOrder>(json);
 
                     EasyLinkResponse response = new EasyLinkResponse();
-                    response = apiManager.SubmitEasyLinkOrderRequest(order, orderType, action);
+                    if (action == ApiManager.Action.NEW) response = apiManager.SendNewOrderRequest(orderType, order);
+                    if (action == ApiManager.Action.UPDATE) response = apiManager.SendUpdateOrderRequest(orderType, order);
 
                     if (response.status == "SUCCESS") moveFileToSubFolder(file, "Processed");
                     else moveFileToSubFolder(file, "Errored");
@@ -174,11 +195,11 @@ namespace EasyLinkSimpleIntegration
         }
 
         // Move file to a designated sub folder
-        static bool moveFileToSubFolder(FileSystemEventArgs file, String subFolderPath)
+        static bool moveFileToSubFolder(FileInfo file, String subFolderPath)
         {
-            string fileName = Path.GetFileNameWithoutExtension(file.FullPath);
-            string fileDirectory = Path.GetDirectoryName(file.FullPath);
-            string fileExtension = Path.GetExtension(file.FullPath);
+            string fileName = Path.GetFileNameWithoutExtension(file.FullName);
+            string fileDirectory = Path.GetDirectoryName(file.FullName);
+            string fileExtension = Path.GetExtension(file.FullName);
             string newFileDirectory = fileDirectory + "\\" + subFolderPath;
             string newFullFilePath = newFileDirectory + "\\" + fileName + fileExtension;
             try
@@ -186,7 +207,7 @@ namespace EasyLinkSimpleIntegration
                 if (!Directory.Exists(newFileDirectory)) Directory.CreateDirectory(newFileDirectory);
 
                 //don't move a file that doesn't exist
-                if (!File.Exists(file.FullPath))
+                if (!File.Exists(file.FullName))
                 {
                     return false;
                 }
@@ -199,7 +220,7 @@ namespace EasyLinkSimpleIntegration
                     i++;
                 }
 
-                File.Move(file.FullPath, newFullFilePath);
+                File.Move(file.FullName, newFullFilePath);
             }
             catch (Exception ex)
             {

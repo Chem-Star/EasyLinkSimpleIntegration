@@ -13,6 +13,8 @@ namespace EasyLinkSimpleIntegration
     class ApiManager
     {
         public enum Action { NEW, UPDATE, CANCEL, GET }
+
+        //Used to keep track of the API credentials validation
         private class SalesforceAuthenticationResponse
         {
             public string access_token      { get; set; }
@@ -25,9 +27,12 @@ namespace EasyLinkSimpleIntegration
             public string error_description { get; set; }
         }
 
+        //Constants to help set up our requests
         private const string OutboundSuffix = "/services/apexrest/v2/outbound";
         private const string InboundSuffix = "/services/apexrest/v2/inbound";
 
+
+        //The credentials that will be used to connect to the API
         private String clientId;
         private String clientSecret;
         private String username;
@@ -35,6 +40,7 @@ namespace EasyLinkSimpleIntegration
         private String securityToken;
         private bool isSandbox;
 
+        //The response back from the credentials validation
         private SalesforceAuthenticationResponse auth_response;
 
 
@@ -89,104 +95,121 @@ namespace EasyLinkSimpleIntegration
         ////////////////////////////////////////////////////////////////////
         //  EASY LINK ORDER METHODS
         ////////////////////////////////////////////////////////////////////
-        public EasyLinkResponse SubmitEasyLinkOrderRequest(EasyLinkOrder order, EasyLinkOrder.OrderType orderType, Action action)
-        {
-            return SendEasyLinkOrderRequest(order, orderType, action, "", "");
-        }
-        public EasyLinkResponse SubmitGetEasyLinkOrderOrderRequest(EasyLinkOrder.OrderType orderType, string Record_Name, string Record_ExternalName)
-        {
-            return SendEasyLinkOrderRequest(null, orderType, Action.GET, Record_Name, Record_ExternalName);
-        }
 
-        private EasyLinkResponse SendEasyLinkOrderRequest(EasyLinkOrder order, EasyLinkOrder.OrderType orderType, Action action, string Record_Name, string Record_ExternalName)
+        //New
+        public EasyLinkResponse SendNewOrderRequest(EasyLinkOrder.OrderType orderType, EasyLinkOrder order)
         {
-            RestClient client = new RestClient();
+            //Initialize our RestRequest and set the method and parameters
             RestRequest request = new RestRequest();
-            EasyLinkResponse response = new EasyLinkResponse();
+            request.Method = Method.POST;
+            //request format must be set before we add the body
             request.RequestFormat = DataFormat.Json;
+            request.AddBody(order);
 
-            string endpoint = auth_response.instance_url;
-            Method method = Method.POST;
+            return SendRequest(orderType, request);
+        }
+        //Update
+        public EasyLinkResponse SendUpdateOrderRequest(EasyLinkOrder.OrderType orderType, EasyLinkOrder order)
+        {
+            //Initialize our RestRequest and set the method and parameters
+            RestRequest request = new RestRequest();
+            request.Method = Method.PATCH;
+            request.AddQueryParameter("Record_ExternalName", order.Record_ExternalName);
+            request.AddQueryParameter("Record_Name", order.Record_Name);
+            //request format must be set before we add the body
+            request.RequestFormat = DataFormat.Json;
+            request.AddBody(order);
 
-            //Set the endpoint based on the OrderType
-            switch(orderType)
-            {
-                case EasyLinkOrder.OrderType.Inbound:
-                    endpoint += InboundSuffix;
-                    break;
-                case EasyLinkOrder.OrderType.Outbound:
-                    endpoint += OutboundSuffix;
-                    break;
-                default:
-                    Console.WriteLine("ORDER TYPE ISN'T SUPPORTED CURRENTLY");
-                    break;
-            }
-            
-            //Set the method and parameters based on the Action
-            switch(action)
-            {
-                case Action.NEW:
-                    method = Method.POST;
-                    request.AddBody(order);
-                    break;
-                case Action.UPDATE:
-                    method = Method.PATCH;
-                    request.AddQueryParameter("Record_ExternalName", order.Record_ExternalName);
-                    request.AddQueryParameter("Record_Name", order.Record_Name);
-                    request.AddBody(order);
-                    break;
-                case Action.GET:
-                    method = Method.GET;
-                    request.AddQueryParameter("Record_ExternalName", Record_ExternalName);
-                    request.AddQueryParameter("Record_Name", Record_Name);
-                    break;
-                default:
-                    Console.WriteLine("METHOD ISN'T SUPPORTED CURRENTLY");
-                    break;
-            }
+            return SendRequest(orderType, request);
+        }
+        //Get
+        public EasyLinkResponse SendGetOrderRequest(EasyLinkOrder.OrderType orderType, string Record_Name, string Record_ExternalName)
+        {
+            //Initialize our RestRequest and set the method and parameters
+            RestRequest request = new RestRequest();
+            request.Method = Method.GET;
+            request.AddQueryParameter("Record_ExternalName", Record_ExternalName);
+            request.AddQueryParameter("Record_Name", Record_Name);
 
-            client.BaseUrl = new System.Uri(endpoint);
-            request.Method = method;
+            return SendRequest(orderType, request);
+        }
+        //Get Bulk
+        public EasyLinkResponse SendGetBulkOrderRequest(EasyLinkOrder.OrderType orderType, string StartDateString)
+        {
+            //Initialize our RestRequest and set the method and parameters
+            RestRequest request = new RestRequest();
+            request.Method = Method.GET;
+            //If you are an external user, this will be overwritten by the company code associated with your profile
+            request.AddQueryParameter("Company", "PRE"); 
+            request.AddQueryParameter("Bulk", "true");
+            request.AddQueryParameter("StartDate", "\"" + StartDateString + "\"" );
+            //request.AddQueryParameter("HeaderFields", "Record_Status,Record_Name,WMS_Record_Name,OwnerCode");
+            //request.AddQueryParameter("LineItemFields", "WMS_RecordLine_Number");
 
-            response = SendEasyLinkRequest(client, request);
-            Console.WriteLine(" == STATUS      : " + response.status);
-            Console.WriteLine(" == RECORD NAME : " + response.record_name);
-            Console.WriteLine(" == MESSAGE     : " + response.message);
-            Console.WriteLine(" == RECORD      : " + JsonConvert.SerializeObject(response.record));
-
-            return response;
+            return SendRequest(orderType, request);
         }
 
-
-
-        public int retryCount = 0;
         //Handles sending the RestRequest and re-validating if the session id has expired
-        public EasyLinkResponse SendEasyLinkRequest(RestClient client, RestRequest request)
+        public int retryCount = 0;
+        public EasyLinkResponse SendRequest(EasyLinkOrder.OrderType orderType, RestRequest request)
         {
+            //initialize our rest client
+            RestClient client = new RestClient();
+            string endpoint = auth_response.instance_url;
+            //Set the endpoint based on the OrderType
+            if (orderType == EasyLinkOrder.OrderType.Inbound) endpoint += InboundSuffix;
+            if (orderType == EasyLinkOrder.OrderType.Outbound) endpoint += OutboundSuffix;
+            client.BaseUrl = new System.Uri(endpoint);
+
+            //Update our request with standard parameters
             request.AddOrUpdateParameter("Authorization", "Bearer " + auth_response.access_token, ParameterType.HttpHeader);
             request.AddHeader("cache-control", "no-cache");
 
+
+            //Execute our request
+            Console.WriteLine("Sending Request");
             IRestResponse response = client.Execute(request);
 
+            //Handle the response
             if (response.IsSuccessful)
             {
-                EasyLinkResponse easyLinkResponse = JsonConvert.DeserializeObject<EasyLinkResponse>(response.Content);
+                retryCount = 0;
+                //Deserialize the successful response and return it
+                JsonSerializerSettings jsonSettings = new JsonSerializerSettings
+                {
+                    NullValueHandling = NullValueHandling.Ignore,
+                    MissingMemberHandling = MissingMemberHandling.Ignore
+                };
 
-                //if(easyLinkResponse.)
+                //Console.WriteLine(response.Content);
+
+                EasyLinkResponse easyLinkResponse = JsonConvert.DeserializeObject<EasyLinkResponse>(response.Content, jsonSettings);
+
+                Console.WriteLine("STATUS     : " + easyLinkResponse.status           );
+                Console.WriteLine("MESSAGE    : " + easyLinkResponse.message          );
+                Console.WriteLine("RECORD NAME: " + easyLinkResponse.record_name      );
+
+                foreach(EasyLinkOrder easyLinkOrder in easyLinkResponse.records)
+                {
+                    Console.WriteLine(easyLinkOrder.Record_Status + " - " + easyLinkOrder.Record_Name + " - " + easyLinkOrder.WMS_Record_Name + " - " +easyLinkOrder.WMS_Record_LastModifiedDate);
+                }
 
                 return easyLinkResponse;
-            }else
+            }
+            else
             {
+                //Try to send again if the credentials weren't valid anymore
                 if (response.Content.Contains("INVALID_SESSION_ID") && retryCount < 3)
                 {
                     retryCount++;
                     ValidateCredentials();
-                    return SendEasyLinkRequest(client, request);
+                    return SendRequest(orderType, request);
                 }
 
+                //Build a failed request response to return
                 EasyLinkResponse easyLinkResponse = new EasyLinkResponse();
                 easyLinkResponse.status = "FAILED_API_REQUEST";
-                easyLinkResponse.message = "Something went wrong "+response.Content;
+                easyLinkResponse.message = "Something went wrong " + response.Content;
                 Console.WriteLine(JsonConvert.SerializeObject(response));
                 return easyLinkResponse;
             }
