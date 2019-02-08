@@ -31,8 +31,8 @@ namespace EasyLinkSimpleIntegration.DataObjects
         public string  WMS_RecordLine_Number                 { get; set; }
         public string  WMS_RecordLine_CreatedDate            { get; set; }
         public string  WMS_RecordLine_LastModifiedDate       { get; set; }
-        public string  WMS_ShippedDate                       { get; set; }
-        public string  WMS_ReceivedDate                      { get; set; }
+        public string  WMS_RecordLine_ShippedDate            { get; set; }
+        public string  WMS_RecordLine_ReceivedDate           { get; set; }
         public string  WMS_Product_RinchemPartNumber         { get; set; }
         public double  WMS_Quantity                          { get; set; }
         public string  WMS_LotNumber                         { get; set; }

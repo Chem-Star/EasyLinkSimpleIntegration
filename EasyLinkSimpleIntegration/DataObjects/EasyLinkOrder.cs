@@ -73,8 +73,8 @@ namespace EasyLinkSimpleIntegration.DataObjects
         public string WMS_Record_Name                                       { get; set; }
         public string WMS_Record_CreatedDate                                { get; set; }
         public string WMS_Record_LastModifiedDate                           { get; set; }
-        public string WMS_ShippedDate                                       { get; set; }
-        public string WMS_ReceivedDate                                      { get; set; }
+        public string WMS_Record_ShippedDate                                { get; set; }
+        public string WMS_Record_ReceivedDate                               { get; set; }
         public string WMS_OwnerCode                                         { get; set; }
         public string WMS_SupplierCode                                      { get; set; }
         public string WMS_EstimatedShipDate                                 { get; set; }
