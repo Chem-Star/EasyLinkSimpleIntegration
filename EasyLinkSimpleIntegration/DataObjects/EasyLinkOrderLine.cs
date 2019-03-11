@@ -21,8 +21,8 @@ namespace EasyLinkSimpleIntegration.DataObjects
         public string LineCustomerField1                { get; set; }
         public string LineCustomerField2                { get; set; }
         public string LineCustomerField3                { get; set; }
-        public string Status                            { get; set; }
-        public string Status_Reason                     { get; set; }
+        public string HoldCode                          { get; set; }
+        public string HoldCode_Reason                   { get; set; }
         public string Attributes_Destination            { get; set; }
         public string Attributes_Process                { get; set; }
         public string Attributes_Other                  { get; set; }
@@ -40,7 +40,7 @@ namespace EasyLinkSimpleIntegration.DataObjects
         public string  WMS_UnitOfMeasure                     { get; set; }
         public string  WMS_LinePurchaseOrderNumber           { get; set; }
         public string  WMS_AdditionalComments                { get; set; }
-        public string  WMS_Status                            { get; set; }
+        public string  WMS_HoldCode                          { get; set; }
         public string  WMS_Attributes_Destination            { get; set; }
         public string  WMS_Attributes_Process                { get; set; }
         public string  WMS_Attributes_Other                  { get; set; }

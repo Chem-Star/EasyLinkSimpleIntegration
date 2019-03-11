@@ -24,20 +24,41 @@ namespace EasyLinkSimpleIntegration
             while (true)
             {
                 string line = Console.ReadLine();
+                EasyLinkResponse easyLinkResponse;
                 switch (line.ToLower())
                 {
                     case "clear":
                         Console.Clear();
                         break;
                     case "getbulkoutbound":
-                        Console.WriteLine("Enter the oldest date for orders you would like to retreive.");
-                        string Outbound_Date_String = Console.ReadLine();
-                        apiManager.SendGetBulkOrderRequest(EasyLinkOrder.OrderType.Outbound, Outbound_Date_String);
+                        Console.WriteLine("Enter the start date for orders you would like to retreive.");
+                        string Outbound_StartDateString      = Console.ReadLine();
+                        Console.WriteLine("Enter the end date for orders you would like to retreive.");
+                        string Outbound_EndDateString        = Console.ReadLine();
+                        Console.WriteLine("Enter the statuses that you would like to receive.");
+                        string Outbound_StatusesString       = Console.ReadLine();
+                        string Outbound_HeaderFieldsString   = "Record_Status,Record_Name,WMS_Record_Name,WMS_Record_LastModifiedDate";
+                        string Outbound_LineItemFieldsString = "WMS_Quantity";
+                        easyLinkResponse = apiManager.SendGetBulkOrderRequest(EasyLinkOrder.OrderType.Outbound, Outbound_StartDateString, Outbound_EndDateString, Outbound_StatusesString, Outbound_HeaderFieldsString, Outbound_LineItemFieldsString);
+                        foreach (EasyLinkOrder easyLinkOrder in easyLinkResponse.records)
+                        {
+                            Console.WriteLine(easyLinkOrder.Record_Status + " - " + easyLinkOrder.Record_Name + " - " + easyLinkOrder.WMS_Record_Name + " - " + easyLinkOrder.WMS_Record_LastModifiedDate);
+                        }
                         break;
                     case "getbulkinbound":
-                        Console.WriteLine("Enter the oldest date for orders you would like to retreive.");
-                        string Inbound_Date_String = Console.ReadLine();
-                        apiManager.SendGetBulkOrderRequest(EasyLinkOrder.OrderType.Inbound, Inbound_Date_String);
+                        Console.WriteLine("Enter the start date for orders you would like to retreive.");
+                        string Inbound_StartDateString = Console.ReadLine();
+                        Console.WriteLine("Enter the end date for orders you would like to retreive.");
+                        string Inbound_EndDateString = Console.ReadLine();
+                        Console.WriteLine("Enter the statuses that you would like to receive.");
+                        string Inbound_StatusesString = Console.ReadLine();
+                        string Inbound_HeaderFieldsString = "Record_Status,Record_Name,WMS_Record_Name,WMS_Record_LastModifiedDate";
+                        string Inbound_LineItemFieldsString = "WMS_Quantity";
+                        easyLinkResponse = apiManager.SendGetBulkOrderRequest(EasyLinkOrder.OrderType.Inbound, Inbound_StartDateString, Inbound_EndDateString, Inbound_StatusesString, Inbound_HeaderFieldsString, Inbound_LineItemFieldsString);
+                        foreach (EasyLinkOrder easyLinkOrder in easyLinkResponse.records)
+                        {
+                            Console.WriteLine(easyLinkOrder.Record_Status + " - " + easyLinkOrder.Record_Name + " - " + easyLinkOrder.WMS_Record_Name + " - " + easyLinkOrder.WMS_Record_LastModifiedDate);
+                        }
                         break;
                     case "getoutboundbyexternal":
                         Console.WriteLine("Enter the record external name of the outbound order you would like to retrieve.");

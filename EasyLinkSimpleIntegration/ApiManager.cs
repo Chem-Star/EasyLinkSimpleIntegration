@@ -134,17 +134,19 @@ namespace EasyLinkSimpleIntegration
             return SendRequest(orderType, request);
         }
         //Get Bulk
-        public EasyLinkResponse SendGetBulkOrderRequest(EasyLinkOrder.OrderType orderType, string StartDateString)
+        public EasyLinkResponse SendGetBulkOrderRequest(EasyLinkOrder.OrderType orderType, string StartDateString, string EndDateString, string StatusesString, string HeaderFieldsString, string LineItemFieldsString)
         {
             //Initialize our RestRequest and set the method and parameters
             RestRequest request = new RestRequest();
             request.Method = Method.GET;
             //If you are an external user, this will be overwritten by the company code associated with your profile
-            request.AddQueryParameter("Company", "PRE"); 
-            request.AddQueryParameter("Bulk", "true");
-            request.AddQueryParameter("StartDate", "\"" + StartDateString + "\"" );
-            //request.AddQueryParameter("HeaderFields", "Record_Status,Record_Name,WMS_Record_Name,OwnerCode");
-            //request.AddQueryParameter("LineItemFields", "WMS_RecordLine_Number");
+            request.AddQueryParameter("Company"         , "PRE"                         ); 
+            request.AddQueryParameter("Bulk"            , "true"                        );
+            request.AddQueryParameter("StartDate"       , "\"" + StartDateString + "\"" );
+            request.AddQueryParameter("EndDate"         , "\"" + EndDateString + "\""   );
+            request.AddQueryParameter("Statuses"        , StatusesString                );
+            request.AddQueryParameter("HeaderFields"    , HeaderFieldsString            ); // "Record_Status,Record_Name,WMS_Record_Name,OwnerCode"
+            request.AddQueryParameter("LineItemFields"  , LineItemFieldsString          ); // "WMS_RecordLine_Number"
 
             return SendRequest(orderType, request);
         }
@@ -187,12 +189,6 @@ namespace EasyLinkSimpleIntegration
 
                 Console.WriteLine("STATUS     : " + easyLinkResponse.status           );
                 Console.WriteLine("MESSAGE    : " + easyLinkResponse.message          );
-                Console.WriteLine("RECORD NAME: " + easyLinkResponse.record_name      );
-
-                foreach(EasyLinkOrder easyLinkOrder in easyLinkResponse.records)
-                {
-                    Console.WriteLine(easyLinkOrder.Record_Status + " - " + easyLinkOrder.Record_Name + " - " + easyLinkOrder.WMS_Record_Name + " - " +easyLinkOrder.WMS_Record_LastModifiedDate);
-                }
 
                 return easyLinkResponse;
             }
